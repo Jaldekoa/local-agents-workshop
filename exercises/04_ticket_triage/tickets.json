@@ -1,0 +1,50 @@
+[
+  {
+    "id": "T-101",
+    "title": "Payments page returns 500 on checkout",
+    "body": "Since roughly 09:10 this morning every customer who clicks 'Pay now' gets a white page with 'Internal Server Error (500)'. The error appears for card payments and PayPal alike, so it looks like it breaks before reaching the payment provider. Support has already received 14 calls about it and we are losing sales right now.",
+    "reporter": "Maite (customer support)"
+  },
+  {
+    "id": "T-102",
+    "title": "Cannot log in via SSO since this morning",
+    "body": "Nobody in the Bilbao office can sign in through the company SSO. After entering credentials we are bounced back to the login screen with the message 'invalid state parameter'. Logging in with a plain email/password account still works, but most employees only have SSO. This is blocking the whole office.",
+    "reporter": "Unai (IT helpdesk)"
+  },
+  {
+    "id": "T-103",
+    "title": "Typo in the footer: 'Copyrigth'",
+    "body": "Small one: the footer on every page says 'Copyrigth 2026' instead of 'Copyright 2026'. A customer pointed it out on social media. Not urgent, but it makes us look sloppy.",
+    "reporter": "Leire (marketing)"
+  },
+  {
+    "id": "T-104",
+    "title": "Feature request: dark mode",
+    "body": "Several users have asked whether the web app could offer a dark theme. Some of them work night shifts and say the current white background is hard on the eyes. No deadline, just collecting votes — this is the fifth request this quarter.",
+    "reporter": "Jon (product)"
+  },
+  {
+    "id": "T-105",
+    "title": "Nightly database backups failing silently",
+    "body": "While checking disk usage I noticed the backup bucket has no new files since last Tuesday. The backup cron job exits with code 0, so no alert ever fired, but the dump step is writing zero-byte files. If the primary database had died this week we would have lost six days of data. We need this fixed and we need an alert on it.",
+    "reporter": "Amaia (SRE on call)"
+  },
+  {
+    "id": "T-106",
+    "title": "CSV export takes 4+ minutes",
+    "body": "Exporting the monthly transactions report to CSV used to take about 20 seconds and now takes over 4 minutes, sometimes timing out. It might be the export query, or maybe the server it runs on is undersized since the data doubled — honestly not sure whose side this falls on. Finance runs this report every Monday and is getting annoyed.",
+    "reporter": "Ander (finance)"
+  },
+  {
+    "id": "T-107",
+    "title": "Mobile layout broken on ticket list",
+    "body": "On phones narrower than about 400px the ticket list overlaps the sidebar and the action buttons are pushed off-screen, so you cannot close a ticket from a phone at all. Reproduced on iPhone SE and a Galaxy A15, both in Chrome and Safari. Desktop looks fine.",
+    "reporter": "Nerea (QA)"
+  },
+  {
+    "id": "T-108",
+    "title": "GDPR: user requests full data deletion",
+    "body": "A user has formally requested deletion of all their personal data under GDPR Article 17. Legal reminds us we have 30 days to comply, but the clock started 9 days ago and there is still no runbook for wiping a user across the main database, the analytics store and the backups. We need owners and a procedure now.",
+    "reporter": "Itziar (legal)"
+  }
+]

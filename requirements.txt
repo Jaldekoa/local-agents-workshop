@@ -1,0 +1,18 @@
+# Workshop dependencies — install with: pip install -r requirements.txt
+# Requires Python 3.10+ (langchain-ollama 1.x needs >=3.10, same as the workshop).
+# Pinned loosely on purpose: any recent version works, and loose pins survive
+# the workshop date better than exact ones.
+
+# Lessons 00 and 01 use ONLY this (plus the standard library). No magic.
+requests>=2.31
+
+# Lesson 02+ : the framework edition, after you've built tool calling by hand.
+langchain-ollama>=1.1.0,<2.0
+langchain>=1.0,<2.0
+
+# The official Ollama python client. langchain-ollama pulls it in automatically;
+# listed here explicitly so you know it's part of the stack.
+ollama>=0.6.1
+
+# Test runner for the exercises' test suites.
+pytest>=8.0

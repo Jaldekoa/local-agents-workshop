@@ -1,0 +1,95 @@
+# CI for the workshop repo.
+#
+# Two jobs:
+#   unit       - fast, no model needed: runs everything under tests/ EXCEPT
+#                tests/integration, on Python 3.10 and 3.12.
+#   live-model - installs Ollama on the runner, pulls the real LittleLamb
+#                model (238 MB, cached between runs) and runs the
+#                tests/integration suite against it. Slower, but proves the
+#                whole stack works exactly as attendees will run it.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  MODEL_FULL_NAME: hf.co/mradermacher/LittleLamb-ToolCalling-GGUF:Q4_K_M
+  MODEL_ALIAS: littlelamb
+
+jobs:
+  unit:
+    name: unit (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run unit tests (everything except tests/integration)
+        run: pytest tests/ --ignore=tests/integration
+
+  live-model:
+    name: live-model (real Ollama + LittleLamb)
+    runs-on: ubuntu-latest
+    # Generous: model pull + CPU-only inference with thinking tokens is slow,
+    # but a genuine failure should still fail the workflow.
+    timeout-minutes: 30
+    continue-on-error: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Install Ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+
+      # Cache the pulled model blobs so CI does not re-download 238 MB
+      # from Hugging Face on every run. Key includes the model name so a
+      # model change invalidates the cache.
+      - name: Cache Ollama models
+        uses: actions/cache@v4
+        with:
+          path: ~/.ollama/models
+          key: ollama-${{ env.MODEL_FULL_NAME }}
+
+      - name: Start Ollama server
+        run: |
+          ollama serve &
+          # Wait until the API answers (up to ~30s).
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:11434/ > /dev/null; then
+              echo "Ollama is up"
+              break
+            fi
+            sleep 1
+          done
+
+      - name: Pull the model and create the workshop alias
+        run: |
+          ollama pull "$MODEL_FULL_NAME"
+          ollama cp "$MODEL_FULL_NAME" "$MODEL_ALIAS"
+          ollama list
+
+      - name: Doctor script sanity check
+        run: python setup/check_setup.py
+
+      - name: Run integration tests
+        run: pytest tests/integration

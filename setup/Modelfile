@@ -1,0 +1,27 @@
+# Optional Modelfile — you do NOT need this for the workshop.
+#
+# The workshop code passes temperature 0 per request (in the "options" field
+# of each API call), which gives deterministic tool calls and worked in all
+# our tests. Use this Modelfile ONLY if your laptop hits the rare Qwen3
+# greedy-decoding failure mode where the model repeats itself forever at
+# temperature 0. These are the model's own recommended sampling defaults
+# (already baked into the GGUF; restated here so the settings stick even
+# when a script requests temperature 0).
+#
+# To build it:
+#   ollama create littlelamb-tuned -f setup/Modelfile
+# Then use model name "littlelamb-tuned" in whichever script was looping.
+#
+# Notes:
+# - FROM references the alias created during setup (ollama cp ... littlelamb).
+# - No stop tokens here: <|im_start|> / <|im_end|> are already baked in.
+# - No num_ctx here: Ollama's default 4096 is plenty for these exercises
+#   (raise to 8192 only for lesson 04 if your ticket texts get long).
+
+FROM littlelamb
+
+# Qwen3 thinking-mode recommended sampling — avoids repetition loops.
+PARAMETER temperature 0.6
+PARAMETER top_p 0.95
+PARAMETER top_k 20
+PARAMETER repeat_penalty 1
