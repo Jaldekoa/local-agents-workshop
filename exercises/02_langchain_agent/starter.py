@@ -33,7 +33,7 @@ def roll_dice(sides: int) -> str:
     # TODO(you) #1a: roll a random number from 1 to `sides` and return a
     # short sentence like "You rolled a 4 on a 6-sided dice."
     # Hint: random.randint(1, sides)
-    return "TODO"
+    return random.randint(1, sides)
 
 
 @tool
@@ -41,7 +41,7 @@ def get_time() -> str:
     """Get the current date and time."""
     # TODO(you) #1b: return the current time as a readable string.
     # Hint: datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    return "TODO"
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
 # A name -> tool dict, so we can find the right tool when the model asks for
@@ -63,7 +63,7 @@ llm = ChatOllama(
 # TODO(you) #2: attach the tools. bind_tools() takes a LIST of tools and
 # returns a new model object that sends their schemas with every request.
 # (In ex01 YOU pasted those schemas into the system prompt. Same thing.)
-llm_with_tools = llm  # <-- replace with: llm.bind_tools([...])
+llm_with_tools = llm.bind_tools([roll_dice, get_time])
 
 # ---------------------------------------------------------------------------
 # 3. The agent loop: think -> act -> observe -> repeat.
@@ -77,7 +77,7 @@ def run_agent(question: str) -> str:
 
     for _ in range(5):  # safety cap: tiny models can get stuck calling tools forever
         # TODO(you) #3a: ask the model. Hint: ai_msg = llm_with_tools.invoke(messages)
-        ai_msg = ...
+        ai_msg = llm_with_tools.invoke(messages)
 
         # Keep the model's reply (including its tool request!) in the history.
         # If you forget this, the model never "remembers" asking for the tool.
@@ -85,6 +85,9 @@ def run_agent(question: str) -> str:
 
         # TODO(you) #3b: if ai_msg.tool_calls is empty, the model gave its
         # final answer — break out of the loop.
+
+        if not ai_msg.tool_calls:
+            break
 
         for tool_call in ai_msg.tool_calls:
             # tool_call is a dict: {"name": ..., "args": {...}, "id": ..., ...}
@@ -108,6 +111,8 @@ def run_agent(question: str) -> str:
             # That way you get back a ToolMessage that already carries the
             # matching tool_call_id — append it to messages.
             # Hint: messages.append(selected.invoke(tool_call))
+
+        messages.append(selected.invoke(tool_call))
 
     # .content is the final answer text. (The model also "thinks" before
     # answering — Ollama separates that out for us, so .content stays clean.)
