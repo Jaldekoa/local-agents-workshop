@@ -62,6 +62,7 @@ Do not add explanations, markdown, or extra keys."""
 # Talking to the model (given — same shape as lessons 01-03)
 # ---------------------------------------------------------------------------
 
+
 def build_user_prompt(ticket: dict) -> str:
     """Turn one ticket dict into the text the model will read.
 
@@ -70,11 +71,7 @@ def build_user_prompt(ticket: dict) -> str:
     it copied the reporter's department instead of picking who should FIX
     the bug. With a tiny model, only feed it what it needs.
     """
-    return (
-        f"Ticket {ticket['id']}\n"
-        f"Title: {ticket['title']}\n"
-        f"Body: {ticket['body']}"
-    )
+    return f"Ticket {ticket['id']}\nTitle: {ticket['title']}\nBody: {ticket['body']}"
 
 
 def chat(messages: list) -> str:
@@ -125,6 +122,7 @@ def extract_json(text: str) -> dict | None:
 # TODO(you) #1 — validation
 # ---------------------------------------------------------------------------
 
+
 def validate_verdict(verdict: object) -> str | None:
     """Check a triage verdict. Return None if valid, else an error STRING.
 
@@ -143,12 +141,35 @@ def validate_verdict(verdict: object) -> str | None:
     # TODO(you): implement the five checks above. Remember: return None
     # when everything is valid, and an error string on the FIRST problem
     # you find (one problem at a time is easier for the model to fix).
-    raise NotImplementedError("validate_verdict is your job!")
+
+    if not isinstance(verdict, dict):
+        return "The reply was not a JSON object."
+
+    if "priority" not in verdict:
+        return "The JSON object is missing the 'priority' key."
+
+    if "team" not in verdict:
+        return "The JSON object is missing the 'team' key."
+
+    if "summary" not in verdict:
+        return "The JSON object is missing the 'summary' key."
+
+    if verdict["priority"] not in VALID_PRIORITIES:
+        return "You said 'priority', that is not a valid priority. Valid priorities are exactly: P1, P2, P3."
+
+    if verdict["team"] not in VALID_TEAMS:
+        return "You said 'team', that is not a valid team. Valid teams are exactly: backend, frontend, platform."
+
+    if not isinstance(verdict["summary"], str) or not verdict["summary"].strip():
+        return "The 'summary' must be a non-empty one-line string."
+
+    return None
 
 
 # ---------------------------------------------------------------------------
 # TODO(you) #2 — the retry loop
 # ---------------------------------------------------------------------------
+
 
 def triage_ticket(ticket: dict, max_attempts: int = MAX_ATTEMPTS) -> dict | None:
     """Ask the model to triage one ticket, retrying on invalid output.
@@ -173,14 +194,38 @@ def triage_ticket(ticket: dict, max_attempts: int = MAX_ATTEMPTS) -> dict | None
     #      - your complaint:              {"role": "user", "content": f"That answer
     #        was not valid: {error} Reply again with ONLY the corrected JSON object."}
     # After the loop, return None — a human should look at this ticket.
-    raise NotImplementedError("the retry loop is your job!")
+
+    for _steps in range(max_attempts):
+        reply = chat(messages)
+        verdict = extract_json(reply)
+
+        if not verdict:
+            error = "I could not find a JSON object in your reply."
+        else:
+            error = validate_verdict(verdict)
+
+        if not error:
+            return verdict
+
+        messages.append({"role": "assistant", "content": reply})
+        messages.append(
+            {
+                "role": "user",
+                "content": f"That answer was not valid: {error} Reply again with ONLY the corrected JSON object.",
+            },
+        )
+
+    return None
 
 
 # ---------------------------------------------------------------------------
 # TODO(you) #3 — acting on the verdict
 # ---------------------------------------------------------------------------
 
-def log_incident(ticket: dict, verdict: dict, log_path: Path = DEFAULT_LOG_PATH) -> None:
+
+def log_incident(
+    ticket: dict, verdict: dict, log_path: Path = DEFAULT_LOG_PATH
+) -> None:
     """Append one triage result to a JSON log file (a JSON list on disk).
 
     Steps:
@@ -192,7 +237,26 @@ def log_incident(ticket: dict, verdict: dict, log_path: Path = DEFAULT_LOG_PATH)
     """
     log_path = Path(log_path)
     # TODO(you): implement the three steps above.
-    raise NotImplementedError("log_incident is your job!")
+
+    if log_path.exists():
+        data = json.loads(log_path.read_text(encoding="utf-8"))
+    else:
+        data = []
+
+    data.append(
+        {
+            "ticket_id": ticket["id"],
+            "title": ticket["title"],
+            "priority": verdict["priority"],
+            "team": verdict["team"],
+            "summary": verdict["summary"],
+            "triaged_at": datetime.now().isoformat(timespec="seconds"),
+        }
+    )
+
+    log_path.write_text(
+        json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -200,8 +264,11 @@ def log_incident(ticket: dict, verdict: dict, log_path: Path = DEFAULT_LOG_PATH)
 # so tests can import your functions without triaging anything.
 # ---------------------------------------------------------------------------
 
+
 def main() -> None:
-    tickets = json.loads(Path(__file__).with_name("tickets.json").read_text(encoding="utf-8"))
+    tickets = json.loads(
+        Path(__file__).with_name("tickets.json").read_text(encoding="utf-8")
+    )
 
     print(f"Triaging {len(tickets)} tickets with {MODEL} (all local, no cloud)...\n")
     print(f"{'ID':<8} {'PRIO':<5} {'TEAM':<10} SUMMARY")
@@ -214,7 +281,9 @@ def main() -> None:
             print(f"{ticket['id']:<8} {'??':<5} {'??':<10} FAILED — needs a human")
             continue
         log_incident(ticket, verdict)
-        print(f"{ticket['id']:<8} {verdict['priority']:<5} {verdict['team']:<10} {verdict['summary']}")
+        print(
+            f"{ticket['id']:<8} {verdict['priority']:<5} {verdict['team']:<10} {verdict['summary']}"
+        )
 
     print(f"\nDone. Full log appended to {DEFAULT_LOG_PATH.resolve()}")
 
