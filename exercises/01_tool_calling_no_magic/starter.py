@@ -39,6 +39,7 @@ MAX_STEPS = 5
 # The tools: plain Python functions. Nothing special about them.
 # ---------------------------------------------------------------------------
 
+
 def roll_dice(sides: int) -> int:
     """Roll a die with the given number of sides. Returns 1..sides."""
     return random.randint(1, sides)
@@ -66,22 +67,24 @@ TOOLS = {
 # Don't paraphrase it. A 293M-parameter model has zero tolerance for
 # improvised formats (see experiment 3 in the README).
 # ---------------------------------------------------------------------------
-SYSTEM_PROMPT = """You are a helpful assistant.
+SYSTEM_PROMPT = """
+    You are a helpful assistant.
 
-# Tools
+    # Tools
 
-You may call one or more functions to assist with the user query.
+    You may call one or more functions to assist with the user query.
 
-You are provided with function signatures within <tools></tools> XML tags:
-<tools>
-{"type": "function", "function": {"name": "roll_dice", "description": "Roll a die with the given number of sides and return the result.", "parameters": {"type": "object", "properties": {"sides": {"type": "integer", "description": "Number of sides on the die, e.g. 6 or 20."}}, "required": ["sides"]}}}
-{"type": "function", "function": {"name": "get_time", "description": "Get the current local date and time.", "parameters": {"type": "object", "properties": {}, "required": []}}}
-</tools>
+    You are provided with function signatures within <tools></tools> XML tags:
+    <tools>
+    {"type": "function", "function": {"name": "roll_dice", "description": "Roll a die with the given number of sides and return the result.", "parameters": {"type": "object", "properties": {"sides": {"type": "integer", "description": "Number of sides on the die, e.g. 6 or 20."}}, "required": ["sides"]}}}
+    {"type": "function", "function": {"name": "get_time", "description": "Get the current local date and time.", "parameters": {"type": "object", "properties": {}, "required": []}}}
+    </tools>
 
-For each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:
-<tool_call>
-{"name": <function-name>, "arguments": <args-json-object>}
-</tool_call>"""
+    For each function call, return a json object with function name and arguments within <tool_call></tool_call> XML tags:
+    <tool_call>
+    {"name": <function-name>, "arguments": <args-json-object>}
+    </tool_call>
+"""
 
 
 def chat(messages: list) -> str:
@@ -132,7 +135,13 @@ def parse_tool_call(text: str):
     #   - Bonus robustness: wrap json.loads in try/except ValueError and
     #     return None on broken JSON, so a garbled reply doesn't crash us.
     # -----------------------------------------------------------------------
-    ...
+    match = re.search(r"<tool_call>(.*?)</tool_call>", text, re.DOTALL)
+
+    if not match:
+        return None
+
+    data = json.loads(match.group(1))
+    return data["name"], data["arguments"]
 
 
 def run_agent(user_input: str) -> None:
@@ -175,7 +184,22 @@ def run_agent(user_input: str) -> None:
         #   f) ...and the for-loop sends the updated conversation back to
         #      the model automatically. No extra code needed.
         # -------------------------------------------------------------------
-        ...
+
+        if not parsed:
+            print(reply)
+            return None
+
+        name, args = parsed
+        print(f"[agent] calling tool {name}({args})")
+        result = TOOLS[name](**args)
+
+        messages.append({"role": "assistant", "content": reply})
+        messages.append(
+            {
+                "role": "user",
+                "content": f"<tool_response>\n{json.dumps(result)}\n</tool_response>",
+            }
+        )
 
     print("[agent] hit the 5-step limit — tiny model got stuck. Try rephrasing.")
 
