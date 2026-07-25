@@ -15,6 +15,7 @@ Fill in the three TODO(you) blocks, then run:
 """
 
 import requests
+import json
 
 # Ollama's chat endpoint. This URL never changes — it's your own machine.
 OLLAMA_URL = "http://localhost:11434/api/chat"
@@ -26,7 +27,7 @@ OLLAMA_URL = "http://localhost:11434/api/chat"
 #   ollama cp hf.co/mradermacher/LittleLamb-ToolCalling-GGUF:Q4_K_M littlelamb
 # Use that short alias here. (Check with `ollama list` if unsure.)
 # ---------------------------------------------------------------------------
-MODEL = "..."  # <-- fill me in
+MODEL = "littlelamb"  # <-- fill me in
 
 # ---------------------------------------------------------------------------
 # TODO(you) #2: the conversation.
@@ -42,7 +43,14 @@ MODEL = "..."  # <-- fill me in
 #   2. a user message,   e.g. "What is the capital of France?"
 # ---------------------------------------------------------------------------
 messages = [
-    # <-- fill me in (two dicts)
+    {
+        "role": "system",
+        "content": "You are a pirate. Answer everything in pirate speak.",
+    },
+    {
+        "role": "user",
+        "content": "What is the capital of France?",
+    },
 ]
 
 payload = {
@@ -50,16 +58,20 @@ payload = {
     "messages": messages,
     # stream=False means: wait and send me ONE complete JSON response.
     # (The bonus below flips this to True.)
-    "stream": False,
+    "stream": True,
     # temperature 0 = always pick the most likely next token. For a tiny
     # 293M model this keeps answers stable and reproducible across the room.
     "options": {"temperature": 0},
 }
 
 print(f"[you -> {MODEL}] sending request... (first run loads the model, be patient)")
-response = requests.post(OLLAMA_URL, json=payload, timeout=300)
+response = requests.post(OLLAMA_URL, json=payload, stream=True, timeout=300)
 response.raise_for_status()  # crash loudly if Ollama returned an error
-data = response.json()
+
+for line in response.iter_lines():
+    chunk = json.loads(line)
+    print(chunk["message"]["content"], end="", flush=True)
+print()
 
 # ---------------------------------------------------------------------------
 # TODO(you) #3: extract the reply text.
@@ -71,10 +83,6 @@ data = response.json()
 # that into data["message"]["thinking"] — peek at it if you're curious,
 # but "content" is the clean answer meant for the user.
 # ---------------------------------------------------------------------------
-reply = ...  # <-- fill me in
-
-print()
-print(reply)
 
 
 # ---------------------------------------------------------------------------
