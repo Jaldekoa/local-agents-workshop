@@ -85,11 +85,35 @@ def make_offer(item: str, gold: int) -> str:
     #                             so the model has a real number to quote.
     #
     # Return strings with the numbers IN them — the model narrates around them.
-    return "TODO: haggling rule not implemented yet"
+
+    if gold >= base * 0.8:
+        found["stock"] -= 1
+        player["gold"] -= gold
+        return (
+            f"DEAL! Sold one {item} for {gold} gold. "
+            f"The customer now has {player['gold']} gold. "
+            f"{found['stock']} left in stock."
+        )
+
+    if gold >= base * 0.5:
+        counter = round((gold + base) / 2)
+        return (
+            f"Grunk grumbles. {gold} gold for a {item}? Counteroffer: "
+            f"{counter} gold, and that is Grunk being NICE. No sale yet."
+        )
+
+    return (
+        f"REFUSED. {gold} gold for a {item}?! Grunk has been insulted by "
+        f"trolls with better manners. The asking price is {base} gold."
+    )
 
 
 # TODO(you) #2a — the dispatch dict: tool name -> tool (all three).
-TOOLS: dict = {}
+TOOLS: dict = {
+    "list_wares": list_wares,
+    "ask_price": ask_price,
+    "make_offer": make_offer,
+}
 
 # ---------------------------------------------------------------------------
 # 2. Grunk's personality — the "personality lives in the model" half.
@@ -102,7 +126,16 @@ TOOLS: dict = {}
 #     like "always use your tools" made the model plan a call in its
 #     thinking and then emit nothing at all.
 #   - End with: never invent prices or gold amounts, only use tool numbers.
-SYSTEM_PROMPT = """TODO: you are Grunk..."""
+SYSTEM_PROMPT = """
+    You are Grunk, half-orc keeper of the Rusty Flagon tavern.
+    __________, __________, secretly __________. You speak in short sentences.
+    To answer the customer, FIRST call a tool:
+    - list_wares to show the goods
+    - ask_price for one item's price
+    - make_offer when the customer offers gold for an item
+    Then reply to the customer in one __________ sentence, using only the
+    numbers the tool returned. Never invent prices or gold amounts.
+"""
 
 # ---------------------------------------------------------------------------
 # 3. The model. We use LangChain's native tool calling (the ex02 way), not the
@@ -141,8 +174,8 @@ llm_retry = ChatOllama(
 
 # TODO(you) #2b — attach the three tools to BOTH models with bind_tools
 # (same move as ex02, done twice).
-llm_with_tools = llm  # <-- replace with: llm.bind_tools([...])
-llm_retry_with_tools = llm_retry  # <-- replace with: llm_retry.bind_tools([...])
+llm_with_tools = llm.bind_tools([list_wares, ask_price, make_offer])
+llm_retry_with_tools = llm_retry.bind_tools([list_wares, ask_price, make_offer])
 
 # ---------------------------------------------------------------------------
 # 4. The agent loop (same shape as ex01/ex02) + a REPL around it. All given.
@@ -247,7 +280,7 @@ def main() -> None:
     while True:
         try:
             user_input = input("\nYou: ").strip()
-        except (EOFError, KeyboardInterrupt):
+        except EOFError, KeyboardInterrupt:
             print("\nGrunk: Hmph. Door's that way.")
             break
 
